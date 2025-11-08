@@ -1,0 +1,56 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from scipy.interpolate import griddata
+from numpy import linspace
+from google.colab import files
+
+# === File Upload ===
+uploaded = files.upload()
+filename = list(uploaded.keys())[0]
+print(f"\n✅ File uploaded: {filename}")
+
+# === User input for output type and DPI ===
+file_type = input("\nEnter output file type (e.g., png, tif, pdf): ").strip().lower()
+dpi_value = input("Enter DPI value (e.g., 300, 600, 900): ").strip()
+
+try:
+    dpi_value = int(dpi_value)
+except ValueError:
+    dpi_value = 300
+    print("⚠️ Invalid DPI entered. Defaulting to 300.")
+
+# === Load data ===
+x, y, z = np.loadtxt(filename).T
+
+# === Prepare grid ===
+X, Y = np.unique(x), np.unique(y)
+xi = linspace(min(X), max(X), len(X))
+yi = linspace(min(Y), max(Y), len(Y))
+X1, Y1 = np.meshgrid(xi, yi)
+
+# === Interpolate Z values ===
+Z = griddata((x, y), z, (X1, Y1), method='cubic')
+
+# === Create 2D contour plot ===
+fig, ax = plt.subplots(figsize=(6, 5), dpi=dpi_value)
+
+# Filled contour
+cset = ax.contourf(X1, Y1, Z, cmap=cm.jet, vmin=0, vmax=18)
+
+# Add colorbar
+cbar = fig.colorbar(cset, ax=ax, shrink=0.8, aspect=20, ticks=range(0, 21, 2))
+cbar.set_label('Free Energy (kcal/mol)', fontsize=10)
+
+# Axis labels
+ax.set_xlabel('PC1', fontsize=12)
+ax.set_ylabel('PC2', fontsize=12)
+ax.tick_params(axis="x", labelsize=8)
+ax.tick_params(axis="y", labelsize=8)
+
+# === Save and Download ===
+output_filename = f"2D-FEL_plot.{file_type}"
+plt.savefig(output_filename, dpi=dpi_value, bbox_inches='tight')
+files.download(output_filename)
+
+print(f"\n✅ 2D FEL plot saved and downloaded as: {output_filename}")
