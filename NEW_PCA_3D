@@ -1,0 +1,95 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm
+from scipy.interpolate import griddata
+from numpy import linspace
+from google.colab import files
+
+# === File Upload ===
+uploaded = files.upload()
+
+# Automatically detect uploaded file name
+filename = list(uploaded.keys())[0]
+print(f"\n✅ File uploaded: {filename}")
+
+# === User input for output type and DPI ===
+file_type = input("\nEnter output file type (e.g., png, tif, pdf): ").strip().lower()
+dpi_value = input("Enter DPI value (e.g., 300, 600, 900): ").strip()
+
+# Validate DPI input
+try:
+    dpi_value = int(dpi_value)
+except ValueError:
+    dpi_value = 300
+    print("⚠️ Invalid DPI entered. Defaulting to 300.")
+
+# === Load data ===
+x, y, z = np.loadtxt(filename).T
+
+# === Create 3D Figure ===
+fig = plt.figure(dpi=dpi_value)
+ax = fig.add_subplot(111, projection='3d')
+
+# Prepare grid
+X, Y = np.unique(x), np.unique(y)
+xi = linspace(min(X), max(X), len(X))
+yi = linspace(min(Y), max(Y), len(Y))
+X1, Y1 = np.meshgrid(xi, yi)
+
+# Interpolation
+Z = griddata((x, y), z, (X1, Y1), method='cubic')
+
+# --- Compute automatic global vmin/vmax from your interpolated Z ---
+z_min = np.nanmin(Z)
+z_max = np.nanmax(Z)
+
+# For consistent colors across datasets, do NOT use fixed 0–18
+# Use actual min/max from your data:
+vmin_plot = z_min
+vmax_plot = z_max
+
+# --- Plot smooth surface (no dots, clean like your image) ---
+surf = ax.plot_surface(
+    X1, Y1, Z,
+    rstride=1, cstride=1,
+    alpha=1,
+    cmap=cm.jet,
+    linewidth=0.0,
+    antialiased=True,
+    vmin=vmin_plot, vmax=vmax_plot
+)
+
+# Filled contour projection on Z-plane
+cset = ax.contourf(
+    X1, Y1, Z,
+    zdir='z',
+    offset=vmin_plot,
+    cmap=cm.jet,
+    antialiased=True,
+    vmin=vmin_plot, vmax=vmax_plot
+)
+
+# --- Axis labels and ticks ---
+ax.set_xlabel('PC1', fontsize=12)
+ax.set_ylabel('PC2', fontsize=12)
+ax.tick_params(axis="x", labelsize=6)
+ax.tick_params(axis="y", labelsize=6)
+ax.tick_params(axis="z", labelsize=6)
+ax.set_zlim(vmin_plot, vmax_plot)
+
+# --- Colorbar (auto-scale, clean, no fixed ticks) ---
+fig.colorbar(
+    cset,
+    shrink=0.8,
+    aspect=20,
+    extend='neither'
+)
+
+
+# === Save and Download ===
+output_filename = f"3D-FEL_plot.{file_type}"
+plt.savefig(output_filename, dpi=dpi_value, bbox_inches='tight')
+files.download(output_filename)
+
+print(f"\n✅ Plot saved and downloaded as: {output_filename}")
